@@ -50,7 +50,7 @@ var User = require('./models/user');
                 token: signed
               }
             });
-            
+
           });
 
         }
@@ -59,3 +59,13 @@ var User = require('./models/user');
   }
 
 }
+
+AuthController.register = function(req, res) {
+
+}
+
+AuthController.refreshToken = function(req, res) {
+
+}
+
+module.exports = AuthController;
