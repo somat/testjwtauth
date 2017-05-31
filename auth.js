@@ -134,8 +134,83 @@ AuthController.register = function(req, res) {
   }
 }
 
-AuthController.refreshToken = function(req, res) {
+/**
+ * Refresh JWT Token
+ * @param  {Object} req Request object
+ * @param  {Object} res Response object
+ * @return {Object}     Response object
+ */
+ AuthController.refreshToken = function(req, res) {
 
+  // Validate input
+  req.assert('access_token', 'Access Token required').notEmpty();
+  req.assert('refresh_token', 'Refresh Token required').notEmpty();
+  error = req.validationErrors();
+  if(error) {
+    return res.status(200).json({
+      success: false,
+      message: 'Validation error.'
+    });
+  }
+
+  // Authenticate basic-auth
+  // now user has user.name and user.pass
+  var user = auth(req);
+  if(!user) {
+    return res.status(200).json({
+      success: false,
+      message: 'Authentication failed.'
+    });
+  }
+
+  // Check refresh token
+  var isValid = false;
+  try {
+    jwt.verify(req.body.access_token, config.secret);
+  } catch (e) {
+    if (e.name == "TokenExpiredError") {
+      isValid = true;
+    }
+  }
+
+  if(isValid) {
+    try {
+      var decoded = jwt.verify(
+        req.body.access_token,
+        config.secret,
+        {ignoreExpiration: true}
+        )
+    } catch (e) {
+      isValid = false;
+    }
+  }
+
+  if (isValid && decoded) {
+    User.findById(mongoose.Types.ObjectId(decoded._id))
+    .then(function(result) {
+      if (result.clientId == user.name &&
+        result.clientSecret == user.pass &&
+        result.refreshToken == req.body.refresh_token) {
+            // Access token and request valid, generate new token
+          var newToken = {
+            _id: decoded._id
+          }
+          var signed = jwt.sign(newToken, config.secret, {expiresIn: config.expiredIn});
+          res.status(200).json({
+            success: true,
+            message: 'Refresh token success.',
+            data: {
+              token: signed
+            }
+          });
+        }
+      });
+  } else {
+    return res.status(200).json({
+      success: false,
+      message: 'Invalide token.'
+    });
+  }
 }
 
 module.exports = AuthController;
